@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Safespace — Urban Perception Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html {
+      scroll-behavior: smooth;
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+      height: 100vh;
+      scroll-padding-top: 0;
+    }
+
+    /* Smooth scroll transition with custom timing */
+    * {
+      scroll-behavior: smooth;
+    }
+
+    /* Make scroll snapping more gentle */
+    section {
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+    }
+
+    /* Custom scroll timing for smoother experience */
+    @media (prefers-reduced-motion: no-preference) {
+      html {
+        scroll-behavior: smooth;
+      }
+      
+      /* Add momentum scrolling for webkit browsers */
+      html {
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      cursor: none;
+    }
+
+    /* Custom recording symbol cursor - outer white square brackets */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 20px;
+      height: 20px;
+      border: 2px solid white;
+      border-radius: 0;
+      background: transparent;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(var(--mouse-x, 0), var(--mouse-y, 0)) translate(-50%, -50%);
+      opacity: 1;
+    }
+
+    /* Custom recording symbol cursor - inner red dot */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 8px;
+      background: red;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10000;
+      transform: translate(var(--mouse-x, 0), var(--mouse-y, 0)) translate(-50%, -50%);
+      animation: recordingBlink 1.5s infinite;
+    }
+
+    /* Recording blink animation */
+    @keyframes recordingBlink {
+      0%, 50% {
+        opacity: 1;
+      }
+      51%, 100% {
+        opacity: 0;
+      }
+    }
+
+    /* Parameter hover effects */
+    .parameter-item {
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .parameter-item:hover {
+      transform: scale(1.25);
+      color: #fbbf24;
+    }
+
+    /* Subpage styles */
+    .subpage {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.5s ease;
+    }
+
+    .subpage.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .subpage-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      padding-top: 80px;
+    }
+
+    .subpage-left {
+      padding: 2rem 3rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .subpage-right {
+      padding: 2rem 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1f1f1f;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 2rem;
+      font-size: 2rem;
+      color: white;
+      cursor: pointer;
+      z-index: 101;
+    }
+  </style>
+</head>
+
+<body class="bg-black text-white">
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-black bg-opacity-80 border-b-2 border-white px-6 py-4 flex justify-between items-center">
+    <h1 id="logo" class="text-xl font-bold">Safespace®</h1>
+    <nav class="space-x-6 text-sm hidden md:block">
+      <a href="#intro" class="hover:underline">Intro</a>
+      <a href="#parameters" class="hover:underline">Parameters</a>
+      <a href="#connections" class="hover:underline">Connections</a>
+      <a href="#synthesis" class="hover:underline">Synthesis</a>
+    </nav>
+  </header>
+
+  <!-- Full-height intro section -->
+  <section id="intro" class="h-screen snap-start flex flex-col justify-center items-center text-center px-10 md:px-20 pt-20 bg-black">
+    <h2 class="text-5xl md:text-7xl font-normal leading-tight">Perceived Urban Safety: A Spatial + Cognitive Model</h2>
+    <p class="mt-6 max-w-2xl text-lg text-white/80">
+      This tool investigates the perception of safety in dense urban areas like Mumbai or Delhi by combining neurological cues with spatial analysis. Drawing from cognitive psychology and urban behavior, it aims to measure environmental aspects such as:
+    </p>
+    <ul class="mt-4 max-w-2xl text-lg text-white/80 list-disc list-inside text-left mx-auto">
+      <li>Tightness of space (proximity of surrounding buildings)</li>
+      <li>Light exposure (presence of daylight or artificial light)</li>
+      <li>Escape routes (path network connectivity)</li>
+      <li><span class="font-bold text-yellow-400">WE NEED MORE PARAMETERS!</span></li>
+    </ul>
+    <p class="mt-6 max-w-2xl text-lg text-white/80">
+      The prototype will be developed in Grasshopper, using distance, visibility, and spatial relationships to simulate how a person might psychologically perceive a space’s safety.<br><br>
+      In the future, this tool will expand into a real-time web application using MapLibre, D3.js, and live spatial APIs, enabling city-wide safety mapping from a human-centric lens.
+    </p>
+    <p class="mt-4 max-w-2xl text-sm text-white/60 italic">
+      Reference: Based on urban behavioral studies and tutorials on walksheds, shortest path analysis, and visibility from the Mapping Systems curriculum.
+    </p>
+  </section>
+<script>
+  // Minimalist news ticker animation
+  window.addEventListener('DOMContentLoaded', function() {
+    const ticker = document.getElementById('param-ticker');
+    if (!ticker) return;
+    // Duplicate content for seamless loop
+    ticker.innerHTML += ticker.innerHTML;
+    let pos = 0;
+    function animate() {
+      pos -= 1.1; // speed
+      if (Math.abs(pos) >= ticker.scrollWidth / 2) pos = 0;
+      ticker.style.transform = `translateX(${pos}px)`;
+      requestAnimationFrame(animate);
+    }
+    animate();
+  });
+</script>
+
+  <!-- Parameters -->
+  <section id="parameters" class="min-h-screen snap-start px-10 md:px-20 py-20 bg-black flex flex-col justify-center items-center text-center">
+    <h2 class="text-4xl font-bold mb-4">Parameters Used</h2>
+    <ul class="list-disc list-inside text-white/80 space-y-2 text-lg max-w-2xl">
+      <li class="parameter-item" data-param="natural-lighting">Natural Lighting <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(High)</span></li>
+      <li class="parameter-item" data-param="artificial-lighting">Artificial Lighting <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(High)</span></li>
+      <li class="parameter-item" data-param="enclosure">Enclosure / Tightness <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(High)</span></li>
+      <li class="parameter-item" data-param="tunnel">Tunnel Effect <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(Medium)</span></li>
+      <li class="parameter-item" data-param="visibility">Visibility / Sightlines <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(High)</span></li>
+      <li class="parameter-item" data-param="escape">Escape Route Clarity <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(High)</span></li>
+      <li class="parameter-item" data-param="zones">Public vs Private Zones <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(Medium)</span></li>
+      <li class="parameter-item" data-param="weather">Weather <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(Low)</span></li>
+      <li class="parameter-item" data-param="noise">Noise/Crowd Density <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(Low)</span></li>
+    </ul>
+
+    <!-- D3.js empty canvas -->
+    <div id="d3-canvas-container" style="width:100%;max-width:700px;height:320px;display:flex;justify-content:center;align-items:center;margin:2.5rem auto 1.5rem auto;">
+      <!-- D3 will append SVG here -->
+    </div>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+      // Create an empty D3.js SVG canvas with black background
+      const d3Container = document.getElementById('d3-canvas-container');
+      if (d3Container && window.d3) {
+        const width = d3Container.clientWidth || 700;
+        const height = d3Container.clientHeight || 320;
+        const svg = d3.select(d3Container)
+          .append('svg')
+          .attr('width', width)
+          .attr('height', height)
+          .style('background', '#111')
+          .style('border-radius', '0.75rem');
+      }
+    </script>
+
+<!-- News ticker for parameters (Parameters page) -->
+<div class="w-full flex justify-center items-end" style="position:relative;left:0;right:0;margin-top:2.5rem;pointer-events:none;z-index:10;">
+  <div id="param-ticker-container-params" style="overflow:hidden;width:100vw;max-width:100vw;">
+    <div id="param-ticker-params" style="display:inline-block;white-space:nowrap;color:#888;font-size:0.98rem;background:transparent;padding:0.35rem 0;min-width:100vw;">
+      <span style="margin-right:2.5rem;">Visibility</span>
+      <span style="margin-right:2.5rem;">Escape Route Clarity</span>
+      <span style="margin-right:2.5rem;">Tunnel Effect</span>
+      <span style="margin-right:2.5rem;">Perceived Enclosure</span>
+      <span style="margin-right:2.5rem;">Spatial Legibility</span>
+      <span style="margin-right:2.5rem;">Public vs Private Ambiguity</span>
+      <span style="margin-right:2.5rem;">Natural Lighting</span>
+      <span style="margin-right:2.5rem;">Artificial Lighting</span>
+      <span style="margin-right:2.5rem;">Proximity to Vertical Edges</span>
+      <span style="margin-right:2.5rem;">Width-to-Height Ratio</span>
+      <span style="margin-right:2.5rem;">Shelter Availability</span>
+      <span style="margin-right:2.5rem;">Obstruction Mapping</span>
+      <span style="margin-right:2.5rem;">Crowd Density</span>
+      <span style="margin-right:2.5rem;">Noise Level</span>
+      <span style="margin-right:2.5rem;">Time of Day</span>
+      <span style="margin-right:2.5rem;">Weather Condition</span>
+      <span style="margin-right:2.5rem;">Transit Access</span>
+      <span style="margin-right:2.5rem;">Surveillance Presence</span>
+    </div>
+  </div>
+</div>
+<script>
+  // Minimalist news ticker animation for parameters page
+  window.addEventListener('DOMContentLoaded', function() {
+    const tickerParams = document.getElementById('param-ticker-params');
+    if (!tickerParams) return;
+    tickerParams.innerHTML += tickerParams.innerHTML;
+    let pos2 = 0;
+    function animate2() {
+      pos2 -= 1.1;
+      if (Math.abs(pos2) >= tickerParams.scrollWidth / 2) pos2 = 0;
+      tickerParams.style.transform = `translateX(${pos2}px)`;
+      requestAnimationFrame(animate2);
+    }
+    animate2();
+  });
+</script>
+    </ul>
+  </section>
+
+  <!-- Connections -->
+  <section id="connections" class="min-h-screen snap-start px-10 md:px-20 py-20 bg-black flex flex-col justify-center items-center text-center">
+    <h2 class="text-4xl font-bold mb-6">How It All Connects</h2>
+    <p class="max-w-3xl text-white/70 text-lg mb-10">
+      Each parameter feeds into a combined matrix of perceived urban safety. For example:
+    </p>
+    <div class="grid md:grid-cols-2 gap-6 mt-10 max-w-4xl">
+      <div class="bg-zinc-800 p-6 rounded">
+        <h3 class="text-xl font-semibold mb-2">Lighting</h3>
+        <p class="text-sm text-white/60">Lack of light is interpreted as danger; contrast and transitions affect user comfort and alertness.</p>
+      </div>
+      <div class="bg-zinc-800 p-6 rounded">
+        <h3 class="text-xl font-semibold mb-2">Escape Routes</h3>
+        <p class="text-sm text-white/60">Visible exits increase a sense of control and reduce anxiety in enclosed public spaces.</p>
+      </div>
+      <div class="bg-zinc-800 p-6 rounded">
+        <h3 class="text-xl font-semibold mb-2">Enclosure</h3>
+        <p class="text-sm text-white/60">Tight, tunnel-like spaces evoke heightened alertness or even fear, especially when poorly lit.</p>
+      </div>
+      <div class="bg-zinc-800 p-6 rounded">
+        <h3 class="text-xl font-semibold mb-2">Public/Private Thresholds</h3>
+        <p class="text-sm text-white/60">Spaces on the edge of public-private transitions (e.g. alleyways) often raise perceptual risk.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Synthesis -->
+  <section id="synthesis" class="min-h-screen snap-start px-10 md:px-20 py-20 bg-black flex flex-col justify-center items-center text-center">
+    <h2 class="text-4xl font-bold mb-4">Bringing It All Together</h2>
+    <p class="text-lg text-white/80 max-w-3xl mb-6">
+      The Safespace tool takes all these parameters, analyzes them in relation to one another, and outputs a spatial reading of perceived safety. This helps urban designers anticipate how a space might feel — not just how it looks.
+    </p>
+
+    <!-- Sample Parameter Scoring Table -->
+    <div class="w-full max-w-5xl mx-auto mb-10">
+      <div class="flex items-center mb-2">
+        <span class="text-2xl mr-2">📝</span>
+        <span class="text-xl font-bold">Sample Parameter Scoring Table</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm border-separate border-spacing-y-1">
+          <thead class="text-white/80">
+            <tr class="border-b border-white/10">
+              <th class="py-2 pr-4">Area</th>
+              <th class="py-2 pr-4">Lighting</th>
+              <th class="py-2 pr-4">Tightness</th>
+              <th class="py-2 pr-4">Visibility</th>
+              <th class="py-2 pr-4">Escape Routes</th>
+              <th class="py-2 pr-4">Shelter</th>
+              <th class="py-2 pr-4">Public Access</th>
+              <th class="py-2 pr-4 font-bold">Safety Score</th>
+              <th class="py-2 pr-4">Classification</th>
+            </tr>
+          </thead>
+          <tbody class="text-white/70">
+            <tr class="border-b border-white/5">
+              <td class="location-cell" data-location="marine-drive">Marine Drive</td>
+              <td contenteditable="true" class="editable">0.9</td>
+              <td contenteditable="true" class="editable">0.2</td>
+              <td contenteditable="true" class="editable">0.8</td>
+              <td contenteditable="true" class="editable">0.9</td>
+              <td contenteditable="true" class="editable">0.6</td>
+              <td contenteditable="true" class="editable">1.0</td>
+              <td class="font-bold text-green-400 score-cell">0.9</td>
+              <td class="font-bold text-green-400 class-cell">Safe</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td>Colaba Causeway</td>
+              <td contenteditable="true" class="editable">0.6</td>
+              <td contenteditable="true" class="editable">0.5</td>
+              <td contenteditable="true" class="editable">0.7</td>
+              <td contenteditable="true" class="editable">0.7</td>
+              <td contenteditable="true" class="editable">0.4</td>
+              <td contenteditable="true" class="editable">0.9</td>
+              <td class="font-bold text-yellow-400 score-cell">0.73</td>
+              <td class="font-bold text-yellow-400 class-cell">Moderately Safe</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td>Kurla Station Area</td>
+              <td contenteditable="true" class="editable">0.3</td>
+              <td contenteditable="true" class="editable">0.8</td>
+              <td contenteditable="true" class="editable">0.4</td>
+              <td contenteditable="true" class="editable">0.3</td>
+              <td contenteditable="true" class="editable">0.2</td>
+              <td contenteditable="true" class="editable">0.7</td>
+              <td class="font-bold text-red-500 score-cell">0.45</td>
+              <td class="font-bold text-red-500 class-cell">Unsafe</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td>Bandra Reclamation</td>
+              <td contenteditable="true" class="editable">0.7</td>
+              <td contenteditable="true" class="editable">0.4</td>
+              <td contenteditable="true" class="editable">0.6</td>
+              <td contenteditable="true" class="editable">0.8</td>
+              <td contenteditable="true" class="editable">0.5</td>
+              <td contenteditable="true" class="editable">0.8</td>
+              <td class="font-bold text-yellow-400 score-cell">0.68</td>
+              <td class="font-bold text-yellow-400 class-cell">Moderately Safe</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td>Kamathipura Lane</td>
+              <td contenteditable="true" class="editable">0.2</td>
+              <td contenteditable="true" class="editable">0.9</td>
+              <td contenteditable="true" class="editable">0.3</td>
+              <td contenteditable="true" class="editable">0.2</td>
+              <td contenteditable="true" class="editable">0.1</td>
+              <td contenteditable="true" class="editable">0.5</td>
+              <td class="font-bold text-red-500 score-cell">0.37</td>
+              <td class="font-bold text-red-500 class-cell">Unsafe</td>
+            </tr>
+    <style>
+      #location-float-box {
+        position: fixed;
+        top: 84px; /* Increased to clear header and border */
+        left: 32px;
+        z-index: 2000;
+        background: #fff;
+        color: #222;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 24px 0 rgba(0,0,0,0.18);
+        padding: 0.5rem 0.5rem 0.7rem 0.5rem;
+        min-width: 350px;
+        max-width: 350px;
+        display: none;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+      }
+      #location-float-box img {
+        width: 350px;
+        height: 350px;
+        object-fit: cover;
+        border-radius: 0.25rem;
+        background: #eee;
+        margin-bottom: 0.3rem;
+        border: 2.5px solid #fff;
+        box-shadow: 0 0 0 2px #fff, 0 2px 12px 0 rgba(0,0,0,0.08);
+        display: block;
+      }
+      #location-float-box .loc-title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin-bottom: 0.05rem;
+        color: #111;
+      }
+      #location-float-box .loc-coords {
+        font-size: 0.7rem;
+        color: #444;
+        margin-bottom: 0.05rem;
+      }
+      #location-float-box .loc-score {
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-top: 0.05rem;
+      }
+    </style>
+    <div id="location-float-box">
+      <img id="loc-float-img" src="images/marine drive.jpg" alt="Location image" />
+      <div style="width:100%;padding:0 0.1rem;">
+        <div class="loc-title" id="loc-float-title"></div>
+        <div class="loc-coords" id="loc-float-coords"></div>
+        <div class="loc-score" id="loc-float-score"></div>
+      </div>
+    </div>
+    <script>
+      // Editable scoring table logic
+      function updateScores() {
+        document.querySelectorAll('#synthesis table tbody tr').forEach(row => {
+          const cells = row.querySelectorAll('.editable');
+          let sum = 0, count = 0, valid = true;
+          cells.forEach(cell => {
+            let v = parseFloat(cell.textContent);
+            if (isNaN(v) || v < 0 || v > 1) {
+              cell.classList.add('bg-red-900/40');
+              valid = false;
+            } else {
+              cell.classList.remove('bg-red-900/40');
+              sum += v;
+              count++;
+            }
+          });
+          let avg = count ? +(sum / count).toFixed(2) : 0;
+          const scoreCell = row.querySelector('.score-cell');
+          const classCell = row.querySelector('.class-cell');
+          // Set color and label
+          if (!valid) {
+            scoreCell.textContent = '--';
+            scoreCell.className = 'font-bold text-red-500 score-cell';
+            classCell.textContent = 'Invalid';
+            classCell.className = 'font-bold text-red-500 class-cell';
+          } else {
+            scoreCell.textContent = avg;
+            if (avg >= 0.8) {
+              scoreCell.className = 'font-bold text-green-400 score-cell';
+              classCell.textContent = 'Safe';
+              classCell.className = 'font-bold text-green-400 class-cell';
+            } else if (avg >= 0.6) {
+              scoreCell.className = 'font-bold text-yellow-400 score-cell';
+              classCell.textContent = 'Moderately Safe';
+              classCell.className = 'font-bold text-yellow-400 class-cell';
+            } else {
+              scoreCell.className = 'font-bold text-red-500 score-cell';
+              classCell.textContent = 'Unsafe';
+              classCell.className = 'font-bold text-red-500 class-cell';
+            }
+          }
+        });
+        // Update float box if visible
+        if (window.updateLocationFloatBox) window.updateLocationFloatBox();
+      }
+      document.querySelectorAll('#synthesis table .editable').forEach(cell => {
+        cell.addEventListener('input', updateScores);
+        cell.addEventListener('blur', updateScores);
+      });
+
+      // Floating info box logic for Marine Drive
+      const locationMeta = {
+        'marine-drive': {
+          name: 'Marine Drive',
+          img: 'images/marine drive.jpg',
+          coords: '18.944° N, 72.823° E',
+        },
+        'colaba-causeway': {
+          name: 'Colaba Causeway',
+          img: 'images/colaba causeway.jpg',
+          coords: '18.9122° N, 72.8235° E',
+        },
+        'kurla-station': {
+          name: 'Kurla Station Area',
+          img: 'images/Kurla station.jpg',
+          coords: '19.0654° N, 72.8815° E',
+        },
+        'bandra-reclamation': {
+          name: 'Bandra Reclamation',
+          img: 'images/Bandra reclamation.jpg',
+          coords: '19.0436° N, 72.8223° E',
+        },
+        'kamathipura-lane': {
+          name: 'Kamathipura Lane',
+          img: 'images/kamathipura.jpg',
+          coords: '18.9625° N, 72.8296° E',
+        }
+      };
+
+      const floatBox = document.getElementById('location-float-box');
+      const floatImg = document.getElementById('loc-float-img');
+      const floatTitle = document.getElementById('loc-float-title');
+      const floatCoords = document.getElementById('loc-float-coords');
+      const floatScore = document.getElementById('loc-float-score');
+
+      function showLocationFloatBox(locKey, score, className) {
+        const meta = locationMeta[locKey];
+        if (!meta) return;
+        floatImg.src = meta.img;
+        floatTitle.textContent = meta.name;
+        floatCoords.textContent = meta.coords;
+        floatScore.innerHTML = `<span style="color:#222">Safety Score: </span><span style="color:${className.includes('green') ? '#22c55e' : className.includes('yellow') ? '#facc15' : '#ef4444'};font-weight:700">${score}</span>`;
+        floatBox.style.display = 'flex';
+      }
+      function hideLocationFloatBox() {
+        floatBox.style.display = 'none';
+      }
+
+      // Update float box with live score
+      window.updateLocationFloatBox = function() {
+        const row = document.querySelector('.location-cell[data-location="marine-drive"]').parentElement;
+        const scoreCell = row.querySelector('.score-cell');
+        showLocationFloatBox('marine-drive', scoreCell.textContent, scoreCell.className);
+      };
+
+      // Hover events for all location rows
+      const locationRows = [
+        { key: 'marine-drive', selector: '.location-cell[data-location="marine-drive"]' },
+        { key: 'colaba-causeway', selector: 'td:first-child:contains("Colaba Causeway")' },
+        { key: 'kurla-station', selector: 'td:first-child:contains("Kurla Station Area")' },
+        { key: 'bandra-reclamation', selector: 'td:first-child:contains("Bandra Reclamation")' },
+        { key: 'kamathipura-lane', selector: 'td:first-child:contains("Kamathipura Lane")' }
+      ];
+
+      // Helper to find row by cell text (for non-Marine Drive rows)
+      function getRowByCellText(text) {
+        const tds = Array.from(document.querySelectorAll('#synthesis table tbody td:first-child'));
+        const cell = tds.find(td => td.textContent.trim() === text);
+        return cell ? cell.parentElement : null;
+      }
+
+      // Attach hover events for each location row
+      [
+        { key: 'marine-drive', label: 'Marine Drive' },
+        { key: 'colaba-causeway', label: 'Colaba Causeway' },
+        { key: 'kurla-station', label: 'Kurla Station Area' },
+        { key: 'bandra-reclamation', label: 'Bandra Reclamation' },
+        { key: 'kamathipura-lane', label: 'Kamathipura Lane' }
+      ].forEach(({ key, label }) => {
+        const row = getRowByCellText(label);
+        if (row) {
+          row.addEventListener('mouseenter', () => {
+            const scoreCell = row.querySelector('.score-cell');
+            showLocationFloatBox(key, scoreCell.textContent, scoreCell.className);
+          });
+          row.addEventListener('mouseleave', hideLocationFloatBox);
+        }
+      });
+    </script>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4 p-3 bg-zinc-800/60 rounded text-white/70 text-left text-xs">
+        <span class="font-semibold">Safety Score =</span> Average of all 6 parameters<br>
+        Scores are on a <span class="font-bold">0–1 scale</span> (0 = poor/uncomfortable, 1 = ideal/safe)
+      </div>
+    </div>
+
+    <div class="border border-white/10 rounded-lg p-6 bg-zinc-800 text-white/70 text-sm max-w-2xl">
+      <strong>Output Example:</strong><br />
+      “Zone A has low escape visibility and poor lighting — classified as High Alert.”<br />
+      “Zone C is well-lit, open and near exits — perceived as Safe.”
+    </div>
+  </section>
+
+  <footer class="fixed bottom-0 right-0 text-white/50 text-xs p-6 z-40">
+    © 2025 Safespace Tool · Columbia GSAPP · Varadraj Borde
+  </footer>
+
+  <!-- Subpages for each parameter -->
+  <div id="natural-lighting-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Natural Lighting</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Analyzes natural daylight conditions to determine perceived safety levels throughout the day.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Ladybug</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Use SunPath + Radiation analysis to evaluate daylight hours
+        </p>
+        <p class="text-white/60 text-sm">
+          Implement sun path calculations and radiation mapping to understand natural light availability and its impact on perceived safety in urban spaces.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="artificial-lighting-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Artificial Lighting</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Evaluates artificial light sources like streetlamps and their coverage in urban environments.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Manual / Ladybug</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Approximate streetlamp reach with point light simulation
+        </p>
+        <p class="text-white/60 text-sm">
+          Create point light sources to simulate streetlamp coverage and identify dark zones that may feel unsafe.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="enclosure-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Enclosure / Tightness</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Measures how confined or open a space feels, with tighter spaces often creating higher anxiety levels.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Native GH / Elk</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Offset boundary distances: compute width:height ratios
+        </p>
+        <p class="text-white/60 text-sm">
+          Calculate spatial proportions to identify areas where users might feel trapped or enclosed.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tunnel-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Tunnel Effect</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Identifies narrow corridors with long walls that create tunnel-like experiences.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Native GH</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Identify narrow corridors with long walls and low width
+        </p>
+        <p class="text-white/60 text-sm">
+          Detect linear spaces that might feel confining and create psychological pressure on users.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="visibility-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Visibility / Sightlines</h1>
+        <p class="text-lg text-white/80 mb-4">
+          This parameter measures how much of the surrounding environment can be seen from any given point, affecting perceived safety.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Decoding Spaces / Elk</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Isovist analysis from sample points: ray casting to boundaries
+        </p>
+        <p class="text-white/60 text-sm">
+          Calculate visibility fields to understand how much of the environment is observable from different positions.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="escape-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Escape Route Clarity</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Analyzes how clearly escape routes and exits are visible and accessible from any position in the space.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Urbano / Shortest Path GH</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Count paths from origin to exits: visualize branching options
+        </p>
+        <p class="text-white/60 text-sm">
+          Map multiple escape route options and their accessibility to provide users with psychological comfort.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="zones-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Public vs Private Zones</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Analyzes the transition zones between public and private spaces, which often create ambiguous safety perceptions.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Manual tagging</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Define mesh areas as zones: assign flags or colors
+        </p>
+        <p class="text-white/60 text-sm">
+          Manually categorize spaces to understand territorial boundaries and their impact on perceived safety.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="weather-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Weather</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Evaluates the availability of protective spaces and covered areas that can provide psychological comfort.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Tag surfaces as "covered"</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Check if points are under roofs / overhead surfaces
+        </p>
+        <p class="text-white/60 text-sm">
+          Identify areas with weather protection to understand shelter availability during adverse conditions.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="noise-subpage" class="subpage">
+    <span class="close-btn">&times;</span>
+    <div class="subpage-content">
+      <div class="subpage-left">
+        <h1 class="text-4xl font-bold mb-6 text-white">Noise/Crowd Density</h1>
+        <p class="text-lg text-white/80 mb-4">
+          Analyzes crowd density and noise levels that can affect perceived safety and comfort in urban spaces.
+        </p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Grasshopper Plugin:</h3>
+        <p class="text-xl text-yellow-400 mb-4">Manual or simulated input</p>
+        <h3 class="text-2xl font-semibold mb-4 text-white">Strategy:</h3>
+        <p class="text-white/70 mb-6">
+          Use graph / slider to simulate or annotate crowds
+        </p>
+        <p class="text-white/60 text-sm">
+          Model crowd density patterns to understand how social presence affects perceived safety in different areas.
+        </p>
+      </div>
+      <div class="subpage-right">
+        <div class="text-center text-white/50">
+          <p>Logic Diagram Placeholder</p>
+          <p class="text-sm mt-2">Add your Grasshopper logic diagram image here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Custom cursor tracking
+    document.addEventListener('mousemove', (e) => {
+      document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+
+    // Get all parameter items and subpages
+    const parameterItems = document.querySelectorAll('.parameter-item');
+    const subpages = document.querySelectorAll('.subpage');
+    const closeButtons = document.querySelectorAll('.close-btn');
+    const logo = document.getElementById('logo');
+
+    // Add click event listeners to parameter items
+    parameterItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const paramName = item.getAttribute('data-param');
+        const subpage = document.getElementById(`${paramName}-subpage`);
+        
+        // Update logo to show parameter name
+        logo.textContent = item.textContent;
+        
+        // Show the subpage
+        subpage.classList.add('active');
+        
+        // Disable scroll on body
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    // Add click event listeners to close buttons
+    closeButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Hide all subpages
+        subpages.forEach(subpage => {
+          subpage.classList.remove('active');
+        });
+        
+        // Restore original logo
+        logo.textContent = 'Safespace®';
+        
+        // Re-enable scroll on body
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+      });
+    });
+
+    // Close subpage when clicking outside content
+    subpages.forEach(subpage => {
+      subpage.addEventListener('click', (e) => {
+        if (e.target === subpage) {
+          subpage.classList.remove('active');
+          logo.textContent = 'Safespace®';
+          document.body.style.overflow = '';
+          document.documentElement.style.overflow = '';
+        }
+      });
+    });
+
+    // Close subpage with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        subpages.forEach(subpage => {
+          subpage.classList.remove('active');
+        });
+        logo.textContent = 'Safespace®';
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+      }
+    });
+  </script>
+
+</body>
+</html>
