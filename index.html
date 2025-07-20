@@ -183,6 +183,191 @@
       Reference: Based on urban behavioral studies and tutorials on walksheds, shortest path analysis, and visibility from the Mapping Systems curriculum.
     </p>
   </section>
+
+  <!-- D3.js v7 and force simulation script for the full-screen force-simulation section -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // Urban Safety Parameters hierarchy data
+    const safetyData = {
+      name: "Urban Safety Parameters",
+      children: [
+        { name: "Natural Lighting", priority: "High", children: [
+          { name: "Sun Path Analysis" },
+          { name: "Building Obstructions" },
+          { name: "Radiation Mapping" }
+        ]},
+        { name: "Artificial Lighting", priority: "High", children: [
+          { name: "Point Lights" },
+          { name: "Light Radius Falloff" },
+          { name: "Coverage Grids" }
+        ]},
+        { name: "Enclosure / Tightness", priority: "High", children: [
+          { name: "Width-to-Height Ratio" },
+          { name: "Distance Between Walls" },
+          { name: "Segment Analysis" }
+        ]},
+        { name: "Tunnel Effect", priority: "Medium", children: [
+          { name: "Aspect Ratio Detection" },
+          { name: "Narrow Elongated Shapes" }
+        ]},
+        { name: "Visibility / Sightlines", priority: "High", children: [
+          { name: "Isovist Mapping" },
+          { name: "View Analysis" },
+          { name: "Line-of-Sight Obstruction" }
+        ]},
+        { name: "Escape Route Clarity", priority: "High", children: [
+          { name: "Shortest Path to Exit" },
+          { name: "Multiple Routes" },
+          { name: "Network Graph Mapping" }
+        ]},
+        { name: "Public vs Private Zones", priority: "Medium", children: [
+          { name: "Zoning Boundaries" },
+          { name: "Accessibility Tags" },
+          { name: "Transition Gradients" }
+        ]},
+        { name: "Weather Exposure", priority: "Low", children: [
+          { name: "Shelter Surfaces" },
+          { name: "Raycast Intersections" },
+          { name: "Rain/Sun Coverage" }
+        ]},
+        { name: "Noise / Crowd Density", priority: "Low", children: [
+          { name: "Noise Sources" },
+          { name: "Intensity Falloff" },
+          { name: "Crowd Flow Simulation" }
+        ]}
+      ]
+    };
+
+    // D3.js force-directed tree/flowchart for #force-container
+    window.addEventListener('DOMContentLoaded', function() {
+      const d3Container = document.getElementById('force-container');
+      if (!d3Container || !window.d3) return;
+      // Responsive sizing
+      function getDims() {
+        // Account for header height if present
+        const header = document.querySelector('header');
+        const headerH = header ? header.offsetHeight : 0;
+        const w = window.innerWidth;
+        const h = window.innerHeight - headerH;
+        return { width: w, height: h };
+      }
+      function renderForceGraph() {
+        d3.select(d3Container).selectAll('svg').remove();
+        const { width, height } = getDims();
+        const svg = d3.select(d3Container)
+          .append('svg')
+          .attr('width', width)
+          .attr('height', height)
+          .style('background', '#000')
+          .style('display', 'block')
+          .style('margin', '0 auto');
+
+        // Convert hierarchy to flat nodes/links for force simulation
+        const root = d3.hierarchy(safetyData);
+        const nodes = [];
+        const links = [];
+        function traverse(node, parent = null) {
+          nodes.push(node);
+          if (parent) links.push({ source: parent, target: node });
+          if (node.children) node.children.forEach(child => traverse(child, node));
+        }
+        traverse(root);
+
+        // D3 force simulation
+        const sim = d3.forceSimulation(nodes)
+          .force('link', d3.forceLink(links).distance(160).strength(1).id(d => d.id))
+          .force('charge', d3.forceManyBody().strength(-420))
+          .force('center', d3.forceCenter(width / 2, height / 2))
+          .force('collide', d3.forceCollide(54));
+
+        // Draw links
+        const link = svg.append('g')
+          .attr('stroke', '#444')
+          .attr('stroke-width', 1.5)
+          .selectAll('line')
+          .data(links)
+          .join('line');
+
+        // Node color by priority
+        function nodeColor(d) {
+          if (!d.data.priority) return '#888';
+          if (d.data.priority === 'High') return '#facc15';
+          if (d.data.priority === 'Medium') return '#38bdf8';
+          if (d.data.priority === 'Low') return '#a3e635';
+          return '#888';
+        }
+
+        // Node radius by depth
+        function nodeRadius(d) {
+          if (d.depth === 0) return 32;
+          if (d.depth === 1) return 20;
+          return 12;
+        }
+
+        // Draw nodes
+        const node = svg.append('g')
+          .selectAll('circle')
+          .data(nodes)
+          .join('circle')
+          .attr('r', nodeRadius)
+          .attr('fill', nodeColor)
+          .attr('stroke', '#fff')
+          .attr('stroke-width', d => d.depth === 0 ? 2.5 : 1.2)
+          .attr('cursor', 'pointer')
+          .call(drag(sim));
+
+        // Draw labels
+        const label = svg.append('g')
+          .selectAll('text')
+          .data(nodes)
+          .join('text')
+          .attr('fill', '#fff')
+          .attr('font-size', d => d.depth === 0 ? 18 : d.depth === 1 ? 14 : 11)
+          .attr('font-weight', d => d.depth === 0 ? 700 : 400)
+          .attr('text-anchor', 'middle')
+          .attr('pointer-events', 'none')
+          .text(d => d.data.name);
+
+        sim.on('tick', () => {
+          link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+          node
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y);
+          label
+            .attr('x', d => d.x)
+            .attr('y', d => d.y + 4);
+        });
+
+        // Drag behavior
+        function drag(sim) {
+          function dragstarted(event, d) {
+            if (!event.active) sim.alphaTarget(0.2).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          }
+          function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+          }
+          function dragended(event, d) {
+            if (!event.active) sim.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          }
+          return d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended);
+        }
+      }
+      renderForceGraph();
+      window.addEventListener('resize', renderForceGraph);
+    });
+  </script>
 <script>
   // Minimalist news ticker animation
   window.addEventListener('DOMContentLoaded', function() {
@@ -201,6 +386,44 @@
   });
 </script>
 
+
+  <!-- Full-screen D3.js Force Simulation Section -->
+  <section id="force-simulation"
+    class="w-screen h-screen min-h-screen min-w-full snap-start flex flex-col justify-center items-center bg-black text-white relative overflow-hidden"
+    style="scroll-snap-align: start; width: 100vw; height: 100vh; background: #000;">
+    <div id="force-container"
+      class="w-full h-full flex-1 flex justify-center items-center"
+      style="min-height:0; min-width:0; height:100%; width:100%;">
+      <!-- D3 will render here -->
+    </div>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      #force-simulation {
+        scroll-snap-align: start;
+        width: 100vw;
+        height: 100vh;
+        min-width: 100vw;
+        min-height: 100vh;
+        overflow: hidden;
+        background: #000;
+        position: relative;
+        z-index: 1;
+      }
+      #force-container {
+        width: 100vw;
+        height: calc(100vh - 4.5rem); /* Adjust for header if needed */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
+        min-width: 0;
+        min-height: 0;
+      }
+    </style>
+  </section>
+
   <!-- Parameters -->
   <section id="parameters" class="min-h-screen snap-start px-10 md:px-20 py-20 bg-black flex flex-col justify-center items-center text-center">
     <h2 class="text-4xl font-bold mb-4">Parameters Used</h2>
@@ -215,26 +438,6 @@
       <li class="parameter-item" data-param="weather">Weather <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(Low)</span></li>
       <li class="parameter-item" data-param="noise">Noise/Crowd Density <span style="font-size:0.85em;color:#facc15;opacity:0.8;">(Low)</span></li>
     </ul>
-
-    <!-- D3.js empty canvas -->
-    <div id="d3-canvas-container" style="width:100%;max-width:700px;height:320px;display:flex;justify-content:center;align-items:center;margin:2.5rem auto 1.5rem auto;">
-      <!-- D3 will append SVG here -->
-    </div>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script>
-      // Create an empty D3.js SVG canvas with black background
-      const d3Container = document.getElementById('d3-canvas-container');
-      if (d3Container && window.d3) {
-        const width = d3Container.clientWidth || 700;
-        const height = d3Container.clientHeight || 320;
-        const svg = d3.select(d3Container)
-          .append('svg')
-          .attr('width', width)
-          .attr('height', height)
-          .style('background', '#111')
-          .style('border-radius', '0.75rem');
-      }
-    </script>
 
 <!-- News ticker for parameters (Parameters page) -->
 <div class="w-full flex justify-center items-end" style="position:relative;left:0;right:0;margin-top:2.5rem;pointer-events:none;z-index:10;">
